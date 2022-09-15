@@ -22,7 +22,7 @@ defmodule Ecto.Integration.PreloadTest do
       |> preload(:post)
       |> TestRepo.all()
 
-    refute [%{text: "c1", post: %{title: "p1"}}] = comments
+    assert [%{text: "c1", post: %{title: "p1"}}] = comments
   end
 
   test "preload has_many" do
@@ -799,6 +799,32 @@ defmodule Ecto.Integration.PreloadTest do
         end)
 
       assert expected_items_user == actual_items_user
+    end
+  end
+
+  describe "union queries" do
+    test "should work when preloading comments into posts" do
+      p1 = TestRepo.insert!(%Post{title: "p1"})
+      TestRepo.insert!(%Comment{text: "c1", post: p1})
+
+      q1 = from c in Comment, where: c.text == "a"
+      q2 = from c in Comment, where: c.text == "b"
+      query = union(q1, ^q2)
+
+      p1 = TestRepo.preload([p1], [{:comments, query}], [])
+
+      assert [] == p1.comments
+    end
+
+    test "should work when fetching comments" do
+      p1 = TestRepo.insert!(%Post{title: "p1"})
+      TestRepo.insert!(%Comment{text: "c1", post: p1})
+
+      q1 = from c in Comment, where: c.text == "a"
+      q2 = from c in Comment, where: c.text == "b"
+
+      query = union(q1, ^q2)
+      assert [] = TestRepo.all(query)
     end
   end
 
